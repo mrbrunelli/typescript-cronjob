@@ -53,8 +53,6 @@ class Ocorrencia {
             const totalOcorrenciaResponse = await axios.get<OcorrenciaResponse>(`http://utilities.confirmafacil.com.br/filter/ocorrencia?${this.queryParams}`, this.header)
             this.total = totalOcorrenciaResponse.data.totalCount
 
-            const arrayDeOcorrencias: OcorrenciaArrayResponse[] = []
-
             console.log(`--> Total de ocorrências: ${totalOcorrenciaResponse.data.totalCount}`)
             for (let i = 0; i < this.total; i++) {
                 this.page = i
