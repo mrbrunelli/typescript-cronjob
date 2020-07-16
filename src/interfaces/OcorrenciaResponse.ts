@@ -1,4 +1,7 @@
 interface OcorrenciaResponse {
+    page: number,
+    size: number,
+    totalCount: number,
     respostas: [
         {
             idOcorrencia: number,
