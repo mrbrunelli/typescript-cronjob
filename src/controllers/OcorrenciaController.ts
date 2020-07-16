@@ -3,6 +3,7 @@ import db from '../config/database'
 import axios, { AxiosPromise, AxiosResponse, AxiosRequestConfig } from 'axios'
 import LoginResponse from '../interfaces/LoginResponse'
 import OcorrenciaResponse from '../interfaces/OcorrenciaResponse'
+import OcorrenciaArrayResponse from '../interfaces/OcorrenciaArrayResponse'
 import SqlError from '../enums/SqlError'
 import { format, subDays } from 'date-fns'
 
@@ -15,19 +16,23 @@ class Ocorrencia {
     private _token!: string
     private _queryParams!: string
     private _header!: {}
-    private _ocorrencias!: OcorrenciaResponse
+    private _ocorrencias!: OcorrenciaArrayResponse[]
     private _error!: boolean
     private _message!: string
     private _date!: any
+    private _page!: number
+    private _total!: any
 
     constructor() {
         this.date = new Date()
         this.error = false
         //this.header = { headers: { authorization: 'fe61c468-43cb-42bd-bfc2-46ac6270f235' } }
-        this.queryParams = `de=${encodeURIComponent(this.date)}&tipoData=OCORRENCIA&codigoOcorrencia=19`
+        this.page = 0
+        this.queryParams = `de=${encodeURIComponent(this.date)}&tipoData=OCORRENCIA&codigoOcorrencia=19&page=${this.page}`
         this.email = process.env.GKO_EMAIL
         this.senha = process.env.GKO_SENHA
         this.body = { email: this.email, senha: this.senha }
+        this.ocorrencias = []
     }
 
     async loginApi() {
@@ -45,8 +50,22 @@ class Ocorrencia {
 
     async listAllOcorrencias() {
         try {
-            const response = await axios.get<OcorrenciaResponse>(`http://utilities.confirmafacil.com.br/filter/ocorrencia?${this.queryParams}`, this.header)
-            this.ocorrencias = response.data
+            const totalOcorrenciaResponse = await axios.get<OcorrenciaResponse>(`http://utilities.confirmafacil.com.br/filter/ocorrencia?${this.queryParams}`, this.header)
+            this.total = totalOcorrenciaResponse.data.totalCount
+
+            const arrayDeOcorrencias: OcorrenciaArrayResponse[] = []
+
+            console.log(`--> Total de ocorrências: ${totalOcorrenciaResponse.data.totalCount}`)
+            for (let i = 0; i < this.total; i++) {
+                this.page = i
+                this.queryParams = `de=${encodeURIComponent(this.date)}&tipoData=OCORRENCIA&codigoOcorrencia=19&page=${this.page}`
+                const ocorrenciaResponse = await axios.get(`http://utilities.confirmafacil.com.br/filter/ocorrencia?${this.queryParams}`, this.header)
+
+                this.ocorrencias.push(...ocorrenciaResponse.data.respostas)
+
+                console.log(`--> Buscando página: ${this.page}`)
+            }
+
         } catch (err) {
             this.error = true
             this.message = err
@@ -56,9 +75,8 @@ class Ocorrencia {
     }
 
     async registerOcorrencias() {
-        const { respostas } = this.ocorrencias
 
-        for (let o of respostas) {
+        for (let o of this.ocorrencias) {
 
             if (this.error) break
 
@@ -117,25 +135,25 @@ class Ocorrencia {
                         o.embarque.dataEmissao,
                         o.embarque.dataEmbarque,
                         o.embarque.dataPrevisao,
-                        o.embarque.statusEmbarque.nome,
-                        o.embarque.destinatario.idDestinatario,
-                        o.embarque.destinatario.nome,
-                        o.embarque.destinatario.cnpj,
-                        o.embarque.destinatario.celular,
-                        o.embarque.destinatario.endereco.cidade,
-                        o.embarque.destinatario.endereco.uf,
-                        o.embarque.destinatario.endereco.idEndereco,
-                        o.embarque.transportadora.idTransportadora,
-                        o.embarque.transportadora.cnpj,
-                        o.embarque.transportadora.nome,
-                        o.embarque.pedido.idPedido,
-                        o.embarque.pedido.numero,
-                        o.embarque.pedido.dataEmissao,
-                        o.embarque.pedido.dataCriacao,
-                        o.embarque.pedido.dataAgendamento,
-                        o.embarque.embarcador.idEmbarcador,
-                        o.embarque.embarcador.cnpj,
-                        o.embarque.embarcador.nome,
+                        o.embarque.statusEmbarque?.nome,
+                        o.embarque.destinatario?.idDestinatario,
+                        o.embarque.destinatario?.nome,
+                        o.embarque.destinatario?.cnpj,
+                        o.embarque.destinatario?.celular,
+                        o.embarque.destinatario?.endereco.cidade,
+                        o.embarque.destinatario?.endereco.uf,
+                        o.embarque.destinatario?.endereco.idEndereco,
+                        o.embarque.transportadora?.idTransportadora,
+                        o.embarque.transportadora?.cnpj,
+                        o.embarque.transportadora?.nome,
+                        o.embarque.pedido?.idPedido,
+                        o.embarque.pedido?.numero,
+                        o.embarque.pedido?.dataEmissao,
+                        o.embarque.pedido?.dataCriacao,
+                        o.embarque.pedido?.dataAgendamento,
+                        o.embarque.embarcador?.idEmbarcador,
+                        o.embarque.embarcador?.cnpj,
+                        o.embarque.embarcador?.nome,
                         o.embarque.entregas[0]?.idEntrega,
                         o.embarque.entregas[0]?.dataCriacao,
                         o.embarque.entregas[0]?.dataEntrega
@@ -151,6 +169,24 @@ class Ocorrencia {
 
         if (!this.error) return this.message = 'Ocorrências cadastradas com sucesso!'
 
+    }
+
+    get total(): any {
+        return this._total
+    }
+
+    set total(total: any) {
+        total = total < 10 ? 1 : total / 10
+        total = parseInt(total)
+        this._total = total + 1
+    }
+
+    get page(): number {
+        return this._page
+    }
+
+    set page(page: number) {
+        this._page = page
     }
 
     get date(): any {
@@ -179,11 +215,11 @@ class Ocorrencia {
         this._message = message
     }
 
-    get ocorrencias(): OcorrenciaResponse {
+    get ocorrencias(): OcorrenciaArrayResponse[] {
         return this._ocorrencias
     }
 
-    set ocorrencias(ocorrencias: OcorrenciaResponse) {
+    set ocorrencias(ocorrencias: OcorrenciaArrayResponse[]) {
         this._ocorrencias = ocorrencias
     }
 
