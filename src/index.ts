@@ -19,3 +19,4 @@ const job = new CronJob('0 0 6-20/2 * * 1,2,3,4,5,6', () => {
     task.executeTasks()
 
 }, null, true, 'America/Sao_Paulo')
+
